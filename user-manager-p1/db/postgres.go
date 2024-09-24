@@ -23,7 +23,7 @@ func NewDBManager() *PostgresDB {
 	port := helper.Getenv("DATABASE_PORT", "5432")
 	database := helper.Getenv("DATABASE_DBNAME", "")
 
-	addr := fmt.Sprintf("user=%s password=%s sslmode=disable host=%s port=%s dbname=%s", username, password, host, port, database)
+	addr := fmt.Sprintf("sslmode=disable user=%s password=%s host=%s port=%s dbname=%s", username, password, host, port, database)
 
 	return &PostgresDB{
 		addr: addr,
@@ -38,16 +38,14 @@ func (m *PostgresDB) Connect() {
 	m.conn, err = sql.Open("postgres", m.addr)
 
 	if err != nil {
-		log.Printf("[PostgresDB]: %s", err)
+		log.Fatalf("[PostgresDB] Connection failure: %s", err)
 	}
 
 	err = m.conn.Ping()
 	if err != nil {
-		log.Printf("failed to connect to the database: %v", err)
+		log.Fatalf("failed to connect to the database: %v", err)
 	} else {
-
 		createTableIfNotExists(m.conn)
-
 		log.Println("Database connection successful")
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"runtime/debug"
 	"strconv"
 	"sync"
 	"time"
@@ -53,32 +52,24 @@ func (h *Handler) AddUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	// handle errors
-	defer func() {
-		if err := recover(); err != nil {
-			log.Println("Error:", err)
-			log.Println(string(debug.Stack()))
-			json.NewEncoder(w).Encode(schemas.NewError("Server failure", http.StatusInternalServerError))
-		}
-	}()
-
 	var user schemas.User
-	err := json.NewDecoder(r.Body).Decode(&user)
 
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 		log.Println("Unable to parse body:", err)
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(schemas.NewError("Invalid input", http.StatusBadRequest))
-	} else {
-		if err := h.svc.Create(user); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(schemas.NewError("Server failure", http.StatusInternalServerError))
-		} else {
-			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(schemas.NewError("User Created", http.StatusCreated))
-
-		}
+		return
 	}
+
+	if err := h.svc.Create(user); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(schemas.NewError("Server failure", http.StatusInternalServerError))
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(schemas.NewError("User Created", http.StatusCreated))
+
 }
 
 // Update a user
@@ -92,41 +83,32 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	// handle errors
-	defer func() {
-		if err := recover(); err != nil {
-			log.Println("Error:", err)
-			log.Println(string(debug.Stack()))
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(schemas.NewError("Server failure", http.StatusInternalServerError))
-		}
-	}()
-
 	params := mux.Vars(r)
 	id, err := strconv.Atoi(params["id"])
 	if err != nil {
 		log.Println("Error:", err)
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(schemas.NewError("Invalid user ID", http.StatusBadRequest))
-	} else {
-		var user schemas.User
-		err := json.NewDecoder(r.Body).Decode(&user)
-
-		if err != nil {
-			log.Println("Unable to parse body:", err)
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(schemas.NewError("Invalid input", http.StatusBadRequest))
-		} else {
-			user.ID = id
-			if err := h.svc.Update(user); err != nil {
-				w.WriteHeader(http.StatusNotFound)
-				json.NewEncoder(w).Encode(schemas.NewError("Not found", http.StatusNotFound))
-			} else {
-				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(schemas.NewError("User Updated", http.StatusOK))
-			}
-		}
+		return
 	}
+
+	var user schemas.User
+
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		log.Println("Unable to parse body:", err)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(schemas.NewError("Invalid input", http.StatusBadRequest))
+		return
+	}
+	user.ID = id
+	if err := h.svc.Update(user); err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(schemas.NewError("Not found", http.StatusNotFound))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(schemas.NewError("User Updated", http.StatusOK))
 }
 
 // Delete a user
@@ -140,31 +122,23 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	// handle errors
-	defer func() {
-		if err := recover(); err != nil {
-			log.Println("Error:", err)
-			log.Println(string(debug.Stack()))
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(schemas.NewError("Server failure", http.StatusInternalServerError))
-		}
-	}()
-
 	params := mux.Vars(r)
 	id, err := strconv.Atoi(params["id"])
 	if err != nil {
 		log.Println("Error:", err)
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(schemas.NewError("Invalid user ID", http.StatusBadRequest))
-	} else {
-		if err := h.svc.Delete(id); err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(schemas.NewError("Not found", http.StatusNotFound))
-		} else {
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(schemas.NewError("User Deleted", http.StatusOK))
-		}
+		return
 	}
+
+	if err := h.svc.Delete(id); err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(schemas.NewError("Not found", http.StatusNotFound))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(schemas.NewError("User Deleted", http.StatusOK))
 }
 
 // Get a user
@@ -178,29 +152,22 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	// handle errors
-	defer func() {
-		if err := recover(); err != nil {
-			log.Println("Error:", err)
-			log.Println(string(debug.Stack()))
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(schemas.NewError("Server failure", http.StatusInternalServerError))
-		}
-	}()
-
 	params := mux.Vars(r)
 	id, err := strconv.Atoi(params["id"])
 	if err != nil {
-		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		log.Println("Error:", err)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(schemas.NewError("Invalid user ID", http.StatusBadRequest))
 		return
-	} else {
-		user, err := h.svc.Get(id)
-		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(schemas.NewError("Not found", http.StatusNotFound))
-		} else {
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(user)
-		}
 	}
+
+	user, err := h.svc.Get(id)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(schemas.NewError("Not found", http.StatusNotFound))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(user)
 }
